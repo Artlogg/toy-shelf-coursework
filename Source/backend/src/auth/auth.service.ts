@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { LoginDto } from './dto/login.dto';
+import { UsersService } from '../users/users.service';
 
 interface DemoAccount {
   login: string;
@@ -10,6 +11,8 @@ interface DemoAccount {
 
 @Injectable()
 export class AuthService {
+  constructor(private readonly usersService: UsersService) {}
+
   private readonly accounts: DemoAccount[] = [
     {
       login: 'admin',
@@ -24,24 +27,27 @@ export class AuthService {
   ];
 
   login(dto: LoginDto) {
-    if (dto.role === 'guest') {
+    if (dto.role === 'admin') {
+      const account = this.accounts.find((item) => item.login === dto.login && item.role === 'admin');
+      if (!account || !bcrypt.compareSync(dto.password, account.passwordHash)) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
       return {
-        token: 'demo-guest-token',
-        role: 'guest',
-        login: 'guest',
+        token: 'demo-admin-token',
+        role: 'admin',
+        login: account.login,
       };
     }
 
-    const account = this.accounts.find((item) => item.login === dto.login && item.role === dto.role);
-    if (!account || !bcrypt.compareSync(dto.password, account.passwordHash)) {
+    const user = this.usersService.findByEmail(dto.login);
+    if (!user || !user.passwordHash || !bcrypt.compareSync(dto.password, user.passwordHash)) {
       throw new UnauthorizedException('Invalid credentials');
     }
-
     return {
-      token: `demo-${account.role}-token`,
-      role: account.role,
-      login: account.login,
+      token: `profile-${user.id}`,
+      role: 'client',
+      login: user.email,
+      user: this.usersService.findOne(user.id),
     };
   }
 }
-

@@ -3,8 +3,8 @@ import { LogOut, Minus, Plus, RefreshCw, ShoppingCart, Trash2, UserRound } from 
 import { request } from './api';
 import { clearCart, clearSession, loadCart, loadSession, saveCart, saveSession } from './storage';
 
-const initialProfile = { name: '', email: '', age: '' };
-const initialLogin = { login: 'admin', password: 'admin123', role: 'admin' };
+const initialRegister = { name: '', email: '', age: '', password: '' };
+const initialLogin = { login: '', password: '', role: 'client' };
 
 function formatPrice(value) {
   return new Intl.NumberFormat('ru-RU', {
@@ -16,14 +16,16 @@ function formatPrice(value) {
 
 function App() {
   const [session, setSession] = useState(loadSession());
-  const [profileForm, setProfileForm] = useState(initialProfile);
+  const [registerForm, setRegisterForm] = useState(initialRegister);
   const [loginForm, setLoginForm] = useState(initialLogin);
-  const [startMode, setStartMode] = useState('register');
+  const [startMode, setStartMode] = useState('login');
   const [users, setUsers] = useState([]);
   const [toys, setToys] = useState([]);
   const [cart, setCart] = useState(loadCart());
   const [category, setCategory] = useState('Все');
   const [message, setMessage] = useState('');
+
+  const isAdmin = session?.role === 'admin';
 
   const categories = useMemo(() => ['Все', ...new Set(toys.map((toy) => toy.category))], [toys]);
   const visibleToys = useMemo(
@@ -63,9 +65,10 @@ function App() {
       const user = await request('/users', {
         method: 'POST',
         body: JSON.stringify({
-          name: profileForm.name,
-          email: profileForm.email,
-          age: profileForm.age ? Number(profileForm.age) : undefined,
+          name: registerForm.name,
+          email: registerForm.email,
+          password: registerForm.password,
+          age: registerForm.age ? Number(registerForm.age) : undefined,
         }),
       });
       const nextSession = {
@@ -76,7 +79,7 @@ function App() {
       };
       saveSession(nextSession);
       setSession(nextSession);
-      setProfileForm(initialProfile);
+      setRegisterForm(initialRegister);
       await loadData();
     } catch (error) {
       setMessage(error.message);
@@ -94,6 +97,17 @@ function App() {
       saveSession(payload);
       setSession(payload);
       await loadData();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  async function handleDeleteUser(id) {
+    setMessage('');
+    try {
+      await request(`/users/${id}`, { method: 'DELETE' });
+      await loadData();
+      setMessage('Пользователь удален');
     } catch (error) {
       setMessage(error.message);
     }
@@ -170,77 +184,105 @@ function App() {
 
   if (!session) {
     return (
-      <main className="registerPage">
-        <section className="registerPanel">
-          <p className="eyebrow">artlo</p>
-          <h1>{startMode === 'register' ? 'Регистрация' : 'Вход'}</h1>
-          <p className="registerText">
-            {startMode === 'register'
-              ? 'Создайте профиль покупателя, чтобы перейти в магазин игрушек.'
-              : 'Войдите как администратор, чтобы открыть магазин с расширенным доступом.'}
-          </p>
-          <div className="startSwitch">
-            <button
-              type="button"
-              className={startMode === 'register' ? 'tab activeTab' : 'tab'}
-              onClick={() => {
-                setStartMode('register');
-                setMessage('');
-              }}
-            >
-              Регистрация
-            </button>
-            <button
-              type="button"
-              className={startMode === 'login' ? 'tab activeTab' : 'tab'}
-              onClick={() => {
-                setStartMode('login');
-                setMessage('');
-              }}
-            >
-              Вход администратора
-            </button>
+      <main className="startPage">
+        <section className="startShell">
+          <div className="brandPanel">
+            <p className="eyebrow lightText">artlo</p>
+            <h1>Магазин игрушек</h1>
+            <p>Создайте профиль покупателя или войдите как администратор, чтобы управлять пользователями.</p>
+            <div className="brandFacts">
+              <span>5 товаров</span>
+              <span>корзина</span>
+              <span>остатки</span>
+            </div>
           </div>
-          {message && <div className="alert">{message}</div>}
-          {startMode === 'register' ? (
-            <form onSubmit={handleRegister} className="registerForm">
-              <label>
-                Имя
-                <input value={profileForm.name} onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} />
-              </label>
-              <label>
-                Email
-                <input value={profileForm.email} onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })} />
-              </label>
-              <label>
-                Возраст
-                <input
-                  type="number"
-                  min="1"
-                  max="120"
-                  value={profileForm.age}
-                  onChange={(e) => setProfileForm({ ...profileForm, age: e.target.value })}
-                />
-              </label>
-              <button type="submit" className="primary wideButton">Перейти в магазин</button>
-            </form>
-          ) : (
-            <form onSubmit={handleLogin} className="registerForm">
-              <label>
-                Логин
-                <input value={loginForm.login} onChange={(e) => setLoginForm({ ...loginForm, login: e.target.value })} />
-              </label>
-              <label>
-                Пароль
-                <input
-                  type="password"
-                  value={loginForm.password}
-                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                />
-              </label>
-              <button type="submit" className="primary wideButton">Войти</button>
-            </form>
-          )}
+
+          <div className="startPanel">
+            <div className="startSwitch">
+              <button
+                type="button"
+                className={startMode === 'login' ? 'tab activeTab' : 'tab'}
+                onClick={() => {
+                  setStartMode('login');
+                  setMessage('');
+                }}
+              >
+                Вход
+              </button>
+              <button
+                type="button"
+                className={startMode === 'register' ? 'tab activeTab' : 'tab'}
+                onClick={() => {
+                  setStartMode('register');
+                  setMessage('');
+                }}
+              >
+                Регистрация
+              </button>
+            </div>
+
+            {message && <div className="alert">{message}</div>}
+
+            {startMode === 'login' ? (
+              <form onSubmit={handleLogin} className="startForm">
+                <label>
+                  Тип входа
+                  <select value={loginForm.role} onChange={(event) => setLoginForm({ ...loginForm, role: event.target.value })}>
+                    <option value="client">Пользователь</option>
+                    <option value="admin">Администратор</option>
+                  </select>
+                </label>
+                <label>
+                  {loginForm.role === 'admin' ? 'Логин' : 'Email'}
+                  <input
+                    value={loginForm.login}
+                    placeholder={loginForm.role === 'admin' ? 'admin' : 'client@example.com'}
+                    onChange={(event) => setLoginForm({ ...loginForm, login: event.target.value })}
+                  />
+                </label>
+                <label>
+                  Пароль
+                  <input
+                    type="password"
+                    value={loginForm.password}
+                    placeholder={loginForm.role === 'admin' ? 'admin123' : 'client123'}
+                    onChange={(event) => setLoginForm({ ...loginForm, password: event.target.value })}
+                  />
+                </label>
+                <button type="submit" className="primary wideButton">Войти</button>
+              </form>
+            ) : (
+              <form onSubmit={handleRegister} className="startForm">
+                <label>
+                  Имя
+                  <input value={registerForm.name} onChange={(event) => setRegisterForm({ ...registerForm, name: event.target.value })} />
+                </label>
+                <label>
+                  Email
+                  <input value={registerForm.email} onChange={(event) => setRegisterForm({ ...registerForm, email: event.target.value })} />
+                </label>
+                <label>
+                  Пароль
+                  <input
+                    type="password"
+                    value={registerForm.password}
+                    onChange={(event) => setRegisterForm({ ...registerForm, password: event.target.value })}
+                  />
+                </label>
+                <label>
+                  Возраст
+                  <input
+                    type="number"
+                    min="1"
+                    max="120"
+                    value={registerForm.age}
+                    onChange={(event) => setRegisterForm({ ...registerForm, age: event.target.value })}
+                  />
+                </label>
+                <button type="submit" className="primary wideButton">Зарегистрироваться</button>
+              </form>
+            )}
+          </div>
         </section>
       </main>
     );
@@ -250,14 +292,14 @@ function App() {
     <main className="app">
       <section className="hero">
         <div>
-          <p className="eyebrow">artlo</p>
+          <p className="eyebrow lightText">artlo</p>
           <h1>Магазин игрушек</h1>
         </div>
         <div className="profileCard">
           <UserRound size={18} />
           <div>
             <strong>{session.user?.name || session.login}</strong>
-            <span>{session.role === 'admin' ? 'администратор' : session.user?.email || session.login}</span>
+            <span>{isAdmin ? 'администратор' : session.user?.email || session.login}</span>
           </div>
           <button type="button" className="iconButton" onClick={handleLogout} title="Выйти">
             <LogOut size={18} />
@@ -359,7 +401,7 @@ function App() {
                   <img src={item.image} alt={item.title} />
                   <div>
                     <strong>{item.title}</strong>
-                    <span>{formatPrice(item.price)} × {item.quantity}</span>
+                    <span>{formatPrice(item.price)} x {item.quantity}</span>
                     <div className="quantityControls">
                       <button type="button" className="iconButton" onClick={() => decreaseCartItem(item.id)} title="Уменьшить">
                         <Minus size={16} />
@@ -392,7 +434,7 @@ function App() {
         <div className="sectionHeader compact">
           <div>
             <p className="eyebrow">Профили</p>
-            <h2>Зарегистрированные пользователи</h2>
+            <h2>{isAdmin ? 'Управление пользователями' : 'Зарегистрированные пользователи'}</h2>
           </div>
           <UserRound size={22} />
         </div>
@@ -404,6 +446,11 @@ function App() {
                 <strong>{user.name}</strong>
                 <span>{user.email}{user.age ? ` · ${user.age}` : ''}</span>
               </div>
+              {isAdmin && (
+                <button type="button" className="iconButton danger" onClick={() => handleDeleteUser(user.id)} title="Удалить пользователя">
+                  <Trash2 size={16} />
+                </button>
+              )}
             </article>
           ))}
         </div>

@@ -1,4 +1,4 @@
-import { IsEmail, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsEmail, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateUserDto {
@@ -10,6 +10,10 @@ export class CreateUserDto {
   @IsNotEmpty()
   email!: string;
 
+  @IsString()
+  @MinLength(6)
+  password!: string;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -17,4 +21,3 @@ export class CreateUserDto {
   @Max(120)
   age?: number;
 }
-
