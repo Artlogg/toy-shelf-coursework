@@ -4,6 +4,7 @@ import { request } from './api';
 import { clearCart, clearSession, loadCart, loadSession, saveCart, saveSession } from './storage';
 
 const initialProfile = { name: '', email: '', age: '' };
+const initialLogin = { login: 'admin', password: 'admin123', role: 'admin' };
 
 function formatPrice(value) {
   return new Intl.NumberFormat('ru-RU', {
@@ -16,6 +17,8 @@ function formatPrice(value) {
 function App() {
   const [session, setSession] = useState(loadSession());
   const [profileForm, setProfileForm] = useState(initialProfile);
+  const [loginForm, setLoginForm] = useState(initialLogin);
+  const [startMode, setStartMode] = useState('register');
   const [users, setUsers] = useState([]);
   const [toys, setToys] = useState([]);
   const [cart, setCart] = useState(loadCart());
@@ -74,6 +77,22 @@ function App() {
       saveSession(nextSession);
       setSession(nextSession);
       setProfileForm(initialProfile);
+      await loadData();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  async function handleLogin(event) {
+    event.preventDefault();
+    setMessage('');
+    try {
+      const payload = await request('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(loginForm),
+      });
+      saveSession(payload);
+      setSession(payload);
       await loadData();
     } catch (error) {
       setMessage(error.message);
@@ -154,30 +173,74 @@ function App() {
       <main className="registerPage">
         <section className="registerPanel">
           <p className="eyebrow">artlo</p>
-          <h1>Регистрация</h1>
-          <p className="registerText">Создайте профиль покупателя, чтобы перейти в магазин игрушек.</p>
+          <h1>{startMode === 'register' ? 'Регистрация' : 'Вход'}</h1>
+          <p className="registerText">
+            {startMode === 'register'
+              ? 'Создайте профиль покупателя, чтобы перейти в магазин игрушек.'
+              : 'Войдите как администратор, чтобы открыть магазин с расширенным доступом.'}
+          </p>
+          <div className="startSwitch">
+            <button
+              type="button"
+              className={startMode === 'register' ? 'tab activeTab' : 'tab'}
+              onClick={() => {
+                setStartMode('register');
+                setMessage('');
+              }}
+            >
+              Регистрация
+            </button>
+            <button
+              type="button"
+              className={startMode === 'login' ? 'tab activeTab' : 'tab'}
+              onClick={() => {
+                setStartMode('login');
+                setMessage('');
+              }}
+            >
+              Вход администратора
+            </button>
+          </div>
           {message && <div className="alert">{message}</div>}
-          <form onSubmit={handleRegister} className="registerForm">
-            <label>
-              Имя
-              <input value={profileForm.name} onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} />
-            </label>
-            <label>
-              Email
-              <input value={profileForm.email} onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })} />
-            </label>
-            <label>
-              Возраст
-              <input
-                type="number"
-                min="1"
-                max="120"
-                value={profileForm.age}
-                onChange={(e) => setProfileForm({ ...profileForm, age: e.target.value })}
-              />
-            </label>
-            <button type="submit" className="primary wideButton">Перейти в магазин</button>
-          </form>
+          {startMode === 'register' ? (
+            <form onSubmit={handleRegister} className="registerForm">
+              <label>
+                Имя
+                <input value={profileForm.name} onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} />
+              </label>
+              <label>
+                Email
+                <input value={profileForm.email} onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })} />
+              </label>
+              <label>
+                Возраст
+                <input
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={profileForm.age}
+                  onChange={(e) => setProfileForm({ ...profileForm, age: e.target.value })}
+                />
+              </label>
+              <button type="submit" className="primary wideButton">Перейти в магазин</button>
+            </form>
+          ) : (
+            <form onSubmit={handleLogin} className="registerForm">
+              <label>
+                Логин
+                <input value={loginForm.login} onChange={(e) => setLoginForm({ ...loginForm, login: e.target.value })} />
+              </label>
+              <label>
+                Пароль
+                <input
+                  type="password"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                />
+              </label>
+              <button type="submit" className="primary wideButton">Войти</button>
+            </form>
+          )}
         </section>
       </main>
     );
@@ -194,7 +257,7 @@ function App() {
           <UserRound size={18} />
           <div>
             <strong>{session.user?.name || session.login}</strong>
-            <span>{session.user?.email || session.login}</span>
+            <span>{session.role === 'admin' ? 'администратор' : session.user?.email || session.login}</span>
           </div>
           <button type="button" className="iconButton" onClick={handleLogout} title="Выйти">
             <LogOut size={18} />
