@@ -11,44 +11,6 @@
 - `Documents` — пояснительная записка в форматах DOCX и PDF.
 - `RUN_AND_SCREENSHOTS.md` — запуск, скриншоты и GitHub.
 
-## Как запустить на Windows
-
-1. Установить Node.js LTS.
-2. Открыть PowerShell в папке проекта.
-3. Если PowerShell ругается на `npm.ps1`, используйте `npm.cmd`.
-4. Если появляется `Access is denied` для `node`, сначала выполните:
-
-```powershell
-$env:Path="C:\Program Files\nodejs;$env:Path"
-```
-
-5. Запустить сервер:
-
-```powershell
-cd Source\backend
-npm.cmd install
-npm.cmd run start:dev
-```
-
-6. Открыть второй PowerShell и запустить клиент:
-
-```powershell
-cd Source\frontend
-npm.cmd install
-npm.cmd run dev
-```
-
-7. Сервер работает на `http://localhost:3000`, клиент — на адресе, который покажет Vite.
-
-## Работа с сайтом
-
-Сначала открывается стартовая страница. На ней есть два режима:
-
-- регистрация покупателя: пользователь вводит имя, email, пароль и возраст, профиль создается через `POST /users`;
-- вход пользователя: email и пароль, заданные при регистрации;
-- вход администратора: логин `admin`, пароль `admin123`.
-
-Администратор видит список пользователей и может удалять пользователей.
 
 ## API
 
