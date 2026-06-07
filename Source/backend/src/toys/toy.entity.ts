@@ -4,5 +4,8 @@ export interface Toy {
   category: string;
   price: number;
   available: boolean;
+  stock: number;
+  rating: number;
+  description: string;
+  image: string;
 }
-
