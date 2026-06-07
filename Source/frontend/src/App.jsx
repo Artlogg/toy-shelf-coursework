@@ -1,19 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  LogIn,
-  LogOut,
-  Minus,
-  Plus,
-  RefreshCw,
-  ShieldCheck,
-  ShoppingCart,
-  Trash2,
-  UserRound,
-} from 'lucide-react';
+import { LogOut, Minus, Plus, RefreshCw, ShoppingCart, Trash2, UserRound } from 'lucide-react';
 import { request } from './api';
 import { clearCart, clearSession, loadCart, loadSession, saveCart, saveSession } from './storage';
 
-const initialUser = { name: '', email: '', age: '' };
+const initialProfile = { name: '', email: '', age: '' };
 
 function formatPrice(value) {
   return new Intl.NumberFormat('ru-RU', {
@@ -25,21 +15,12 @@ function formatPrice(value) {
 
 function App() {
   const [session, setSession] = useState(loadSession());
-  const [loginForm, setLoginForm] = useState({ login: 'client', password: 'client123', role: 'client' });
+  const [profileForm, setProfileForm] = useState(initialProfile);
   const [users, setUsers] = useState([]);
   const [toys, setToys] = useState([]);
   const [cart, setCart] = useState(loadCart());
   const [category, setCategory] = useState('Все');
-  const [newUser, setNewUser] = useState(initialUser);
   const [message, setMessage] = useState('');
-
-  const canCreateUsers = session?.role === 'admin';
-  const canBuy = session?.role === 'client' || session?.role === 'admin';
-
-  const roleLabel = useMemo(() => {
-    if (!session) return 'не выполнен';
-    return session.role === 'admin' ? 'администратор' : session.role === 'client' ? 'клиент' : 'гость';
-  }, [session]);
 
   const categories = useMemo(() => ['Все', ...new Set(toys.map((toy) => toy.category))], [toys]);
   const visibleToys = useMemo(
@@ -72,36 +53,28 @@ function App() {
     }
   }
 
-  async function handleLogin(event) {
+  async function handleRegister(event) {
     event.preventDefault();
     setMessage('');
     try {
-      const payload = await request('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(loginForm),
-      });
-      saveSession(payload);
-      setSession(payload);
-    } catch (error) {
-      setMessage(error.message);
-    }
-  }
-
-  async function handleCreateUser(event) {
-    event.preventDefault();
-    setMessage('');
-    try {
-      await request('/users', {
+      const user = await request('/users', {
         method: 'POST',
         body: JSON.stringify({
-          name: newUser.name,
-          email: newUser.email,
-          age: newUser.age ? Number(newUser.age) : undefined,
+          name: profileForm.name,
+          email: profileForm.email,
+          age: profileForm.age ? Number(profileForm.age) : undefined,
         }),
       });
-      setNewUser(initialUser);
+      const nextSession = {
+        token: `profile-${user.id}`,
+        role: 'client',
+        login: user.email,
+        user,
+      };
+      saveSession(nextSession);
+      setSession(nextSession);
+      setProfileForm(initialProfile);
       await loadData();
-      setMessage('Пользователь создан');
     } catch (error) {
       setMessage(error.message);
     }
@@ -113,12 +86,8 @@ function App() {
   }
 
   function addToCart(toy) {
-    if (!canBuy) {
-      setMessage('Войдите как клиент или администратор, чтобы добавлять товары в корзину');
-      return;
-    }
     if (!toy.available) {
-      setMessage('Товар временно отсутствует');
+      setMessage('Товар закончился');
       return;
     }
     const currentQuantity = cart[toy.id] || 0;
@@ -145,14 +114,30 @@ function App() {
     updateCart(nextCart);
   }
 
-  function handleCheckout() {
+  async function handleCheckout() {
     if (!cartCount) {
       setMessage('Корзина пока пустая');
       return;
     }
-    updateCart({});
-    clearCart();
-    setMessage('Заказ оформлен в демонстрационном режиме');
+
+    try {
+      const payload = await request('/toys/checkout', {
+        method: 'POST',
+        body: JSON.stringify({
+          items: cartItems.map((item) => ({
+            toyId: item.id,
+            quantity: item.quantity,
+          })),
+        }),
+      });
+      updateCart({});
+      clearCart();
+      setToys(payload.toys);
+      setMessage(`Заказ оформлен. Сумма: ${formatPrice(payload.total)}. Остатки обновлены.`);
+    } catch (error) {
+      setMessage(error.message);
+      await loadData();
+    }
   }
 
   function handleLogout() {
@@ -164,41 +149,73 @@ function App() {
     void loadData();
   }, []);
 
+  if (!session) {
+    return (
+      <main className="registerPage">
+        <section className="registerPanel">
+          <p className="eyebrow">artlo</p>
+          <h1>Регистрация</h1>
+          <p className="registerText">Создайте профиль покупателя, чтобы перейти в магазин игрушек.</p>
+          {message && <div className="alert">{message}</div>}
+          <form onSubmit={handleRegister} className="registerForm">
+            <label>
+              Имя
+              <input value={profileForm.name} onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} />
+            </label>
+            <label>
+              Email
+              <input value={profileForm.email} onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })} />
+            </label>
+            <label>
+              Возраст
+              <input
+                type="number"
+                min="1"
+                max="120"
+                value={profileForm.age}
+                onChange={(e) => setProfileForm({ ...profileForm, age: e.target.value })}
+              />
+            </label>
+            <button type="submit" className="primary wideButton">Перейти в магазин</button>
+          </form>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="app">
       <section className="hero">
-        <div className="heroText">
-          <p className="eyebrow">Toy Shelf</p>
-          <h1>Магазин игрушек с корзиной и API</h1>
-          <p className="lead">
-            Витрина товаров, роли пользователей, LocalStorage, корзина и серверная валидация данных.
-          </p>
+        <div>
+          <p className="eyebrow">artlo</p>
+          <h1>Магазин игрушек</h1>
         </div>
+        <div className="profileCard">
+          <UserRound size={18} />
+          <div>
+            <strong>{session.user?.name || session.login}</strong>
+            <span>{session.user?.email || session.login}</span>
+          </div>
+          <button type="button" className="iconButton" onClick={handleLogout} title="Выйти">
+            <LogOut size={18} />
+          </button>
+        </div>
+      </section>
+
+      <section className="topbar">
         <div className="heroStats">
           <div>
             <strong>{toys.length}</strong>
             <span>товаров</span>
           </div>
           <div>
-            <strong>{users.length}</strong>
-            <span>пользователей</span>
-          </div>
-          <div>
             <strong>{cartCount}</strong>
             <span>в корзине</span>
           </div>
-        </div>
-      </section>
-
-      <section className="topbar">
-        <div className="session">
-          <ShieldCheck size={18} />
-          <span>Вход: {roleLabel}</span>
-          {session && (
-            <button type="button" className="iconButton" onClick={handleLogout} title="Выйти">
-              <LogOut size={18} />
-            </button>
-          )}
+          <div>
+            <strong>{formatPrice(cartTotal)}</strong>
+            <span>сумма</span>
+          </div>
         </div>
         <button type="button" className="secondary" onClick={loadData}>
           <RefreshCw size={18} />
@@ -208,44 +225,12 @@ function App() {
 
       {message && <div className="alert">{message}</div>}
 
-      {!session && (
-        <section className="authPanel">
-          <h2>Вход в приложение</h2>
-          <form onSubmit={handleLogin} className="formGrid">
-            <label>
-              Логин
-              <input value={loginForm.login} onChange={(e) => setLoginForm({ ...loginForm, login: e.target.value })} />
-            </label>
-            <label>
-              Пароль
-              <input
-                type="password"
-                value={loginForm.password}
-                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-              />
-            </label>
-            <label>
-              Роль
-              <select value={loginForm.role} onChange={(e) => setLoginForm({ ...loginForm, role: e.target.value })}>
-                <option value="client">Клиент</option>
-                <option value="admin">Администратор</option>
-                <option value="guest">Гость</option>
-              </select>
-            </label>
-            <button type="submit" className="primary">
-              <LogIn size={18} />
-              Войти
-            </button>
-          </form>
-        </section>
-      )}
-
       <section className="layout">
         <div className="catalog">
           <div className="sectionHeader">
             <div>
               <p className="eyebrow">Каталог</p>
-              <h2>Игрушки</h2>
+              <h2>Товары</h2>
             </div>
             <div className="categoryTabs">
               {categories.map((item) => (
@@ -267,7 +252,7 @@ function App() {
                 <div className="productImageWrap">
                   <img src={toy.image} alt={toy.title} className="productImage" />
                   <span className={toy.available ? 'badge available' : 'badge unavailable'}>
-                    {toy.available ? 'В наличии' : 'Нет в наличии'}
+                    {toy.available ? `Остаток: ${toy.stock}` : 'Нет в наличии'}
                   </span>
                 </div>
                 <div className="productBody">
@@ -278,7 +263,7 @@ function App() {
                   <p>{toy.description}</p>
                   <div className="productMeta">
                     <span>{toy.category}</span>
-                    <span>Остаток: {toy.stock}</span>
+                    <span>{toy.available ? 'можно заказать' : 'закончился'}</span>
                   </div>
                   <div className="buyRow">
                     <strong>{formatPrice(toy.price)}</strong>
@@ -303,7 +288,7 @@ function App() {
           </div>
 
           {cartItems.length === 0 ? (
-            <div className="emptyCart">Корзина пустая. Войдите как клиент или администратор и добавьте товары.</div>
+            <div className="emptyCart">Корзина пустая. Добавьте товар из каталога.</div>
           ) : (
             <div className="cartItems">
               {cartItems.map((item) => (
@@ -340,62 +325,25 @@ function App() {
         </aside>
       </section>
 
-      <section className="adminArea">
-        <div className="usersBox">
-          <div className="sectionHeader compact">
-            <div>
-              <p className="eyebrow">API</p>
-              <h2>Пользователи</h2>
-            </div>
-            <UserRound size={22} />
+      <section className="usersBox">
+        <div className="sectionHeader compact">
+          <div>
+            <p className="eyebrow">Профили</p>
+            <h2>Зарегистрированные пользователи</h2>
           </div>
-          <div className="usersList">
-            {users.map((user) => (
-              <article className="userItem" key={user.id}>
-                <UserRound size={18} />
-                <div>
-                  <strong>{user.name}</strong>
-                  <span>{user.email}{user.age ? ` · ${user.age}` : ''}</span>
-                </div>
-              </article>
-            ))}
-          </div>
+          <UserRound size={22} />
         </div>
-
-        {canCreateUsers && (
-          <div className="createUserBox">
-            <div className="sectionHeader compact">
+        <div className="usersList">
+          {users.map((user) => (
+            <article className="userItem" key={user.id}>
+              <UserRound size={18} />
               <div>
-                <p className="eyebrow">Администратор</p>
-                <h2>Создание пользователя</h2>
+                <strong>{user.name}</strong>
+                <span>{user.email}{user.age ? ` · ${user.age}` : ''}</span>
               </div>
-            </div>
-            <form onSubmit={handleCreateUser} className="formGrid adminForm">
-              <label>
-                Имя
-                <input value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} />
-              </label>
-              <label>
-                Email
-                <input value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
-              </label>
-              <label>
-                Возраст
-                <input
-                  type="number"
-                  min="1"
-                  max="120"
-                  value={newUser.age}
-                  onChange={(e) => setNewUser({ ...newUser, age: e.target.value })}
-                />
-              </label>
-              <button type="submit" className="primary">
-                <Plus size={18} />
-                Создать
-              </button>
-            </form>
-          </div>
-        )}
+            </article>
+          ))}
+        </div>
       </section>
     </main>
   );

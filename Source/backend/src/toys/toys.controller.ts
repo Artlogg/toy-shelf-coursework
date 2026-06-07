@@ -1,6 +1,6 @@
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { Toy } from './toy.entity';
-import { ToysService } from './toys.service';
+import { CheckoutItem, ToysService } from './toys.service';
 
 @Controller('toys')
 export class ToysController {
@@ -10,5 +10,9 @@ export class ToysController {
   findAll(): Toy[] {
     return this.toysService.findAll();
   }
-}
 
+  @Post('checkout')
+  checkout(@Body('items') items: CheckoutItem[]) {
+    return this.toysService.checkout(items || []);
+  }
+}

@@ -23,16 +23,46 @@ button:disabled {
   opacity: 0.55;
 }
 
-.app {
+.app,
+.registerPage {
   min-height: 100vh;
   padding: 28px;
+}
+
+.registerPage {
+  display: grid;
+  place-items: center;
+}
+
+.registerPanel {
+  width: min(480px, 100%);
+  padding: 28px;
+  border: 1px solid #d9e2ea;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.registerText {
+  margin-top: 10px;
+  color: #617081;
+  line-height: 1.55;
+}
+
+.registerForm {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.wideButton {
+  width: 100%;
 }
 
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 28px;
-  align-items: end;
+  align-items: center;
   margin-bottom: 18px;
   padding: 28px;
   border-radius: 8px;
@@ -80,6 +110,29 @@ h3 {
   color: #617081;
   font-size: 16px;
   line-height: 1.55;
+}
+
+.profileCard {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 38px;
+  gap: 10px;
+  align-items: center;
+  min-width: 300px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #d9e2ea;
+  background: #f8fafb;
+}
+
+.profileCard strong,
+.profileCard span {
+  display: block;
+}
+
+.profileCard span {
+  margin-top: 3px;
+  color: #617081;
+  font-size: 13px;
 }
 
 .heroStats {
@@ -410,10 +463,7 @@ h3 {
   margin-top: 14px;
 }
 
-.adminArea {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 520px);
-  gap: 18px;
+.usersBox {
   margin-top: 18px;
 }
 
@@ -452,10 +502,6 @@ h3 {
   align-items: end;
 }
 
-.adminForm {
-  grid-template-columns: 1fr;
-}
-
 label {
   display: grid;
   gap: 6px;
@@ -491,8 +537,7 @@ select {
   }
 
   .hero,
-  .layout,
-  .adminArea {
+  .layout {
     grid-template-columns: 1fr;
   }
 

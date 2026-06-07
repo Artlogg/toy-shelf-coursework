@@ -1,100 +1,108 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Toy } from './toy.entity';
+
+export interface CheckoutItem {
+  toyId: string;
+  quantity: number;
+}
 
 @Injectable()
 export class ToysService {
   private readonly toys: Toy[] = [
     {
-      id: 'blocks',
-      title: 'Конструктор Builder Box',
-      category: 'Развивающие',
-      price: 1490,
-      available: true,
-      stock: 14,
-      rating: 4.8,
-      description: 'Набор ярких деталей для развития логики, моторики и фантазии.',
-      image: '/images/blocks.png',
-    },
-    {
-      id: 'teddy',
-      title: 'Плюшевый медведь Bruno',
-      category: 'Мягкие',
-      price: 990,
-      available: true,
-      stock: 9,
-      rating: 4.7,
-      description: 'Мягкая игрушка с приятной тканью и аккуратной вышивкой.',
-      image: '/images/teddy.png',
-    },
-    {
-      id: 'car',
-      title: 'Радиоуправляемая машина Sprint',
-      category: 'Техника',
+      id: 'subaru',
+      title: 'Subaru Drift 4WD',
+      category: 'Машинки',
       price: 2490,
       available: true,
-      stock: 5,
-      rating: 4.6,
-      description: 'Игрушечная машина с пультом управления и прочным корпусом.',
-      image: '/images/car.png',
+      stock: 8,
+      rating: 4.8,
+      description: 'Радиоуправляемая машина для дрифта Subaru 4WD длиной 21 см.',
+      image: '/images/subaru.jpg',
     },
     {
       id: 'robot',
-      title: 'Интерактивный робот Byte',
-      category: 'Техника',
-      price: 3290,
+      title: 'Робот Vector',
+      category: 'Роботы',
+      price: 3490,
       available: true,
-      stock: 4,
+      stock: 6,
       rating: 4.9,
-      description: 'Робот с подсветкой, звуками и демонстрационными режимами игры.',
-      image: '/images/robot.png',
+      description: 'Интерактивный робот с гусеницами, подсветкой и характерным дизайном.',
+      image: '/images/robot.jpg',
     },
     {
       id: 'doll',
-      title: 'Кукла Mia',
+      title: 'Кукла Candy',
       category: 'Куклы',
-      price: 1790,
+      price: 1290,
       available: true,
-      stock: 7,
-      rating: 4.5,
-      description: 'Кукла с комплектом одежды и аксессуарами для сюжетной игры.',
-      image: '/images/doll.png',
+      stock: 10,
+      rating: 4.6,
+      description: 'Мягкая кукла с ярким платьем в горошек и розовыми волосами.',
+      image: '/images/doll.jpg',
     },
     {
-      id: 'puzzle',
-      title: 'Пазл Ocean 500',
-      category: 'Развивающие',
-      price: 690,
+      id: 'earth-puzzle',
+      title: 'Пазл Planet Earth',
+      category: 'Пазлы',
+      price: 990,
       available: true,
-      stock: 18,
-      rating: 4.4,
-      description: 'Пазл на 500 деталей для спокойной семейной сборки.',
-      image: '/images/puzzle.png',
+      stock: 12,
+      rating: 4.7,
+      description: 'Круглый пазл с изображением Земли, 500 деталей.',
+      image: '/images/puzzle.jpg',
     },
     {
       id: 'dino',
-      title: 'Динозавр Rex',
-      category: 'Фигурки',
+      title: 'Плюшевый динозавр Rex',
+      category: 'Мягкие игрушки',
       price: 1190,
       available: true,
-      stock: 11,
-      rating: 4.6,
-      description: 'Фигурка динозавра для коллекции и сюжетных игр.',
-      image: '/images/dino.png',
-    },
-    {
-      id: 'ball',
-      title: 'Мяч Active Kids',
-      category: 'Спорт',
-      price: 590,
-      available: false,
-      stock: 0,
-      rating: 4.3,
-      description: 'Легкий игровой мяч для активных занятий дома и на улице.',
-      image: '/images/ball.png',
+      stock: 7,
+      rating: 4.5,
+      description: 'Мягкий зеленый динозавр для игры и коллекции.',
+      image: '/images/dino.jpg',
     },
   ];
 
   findAll(): Toy[] {
     return this.toys;
+  }
+
+  checkout(items: CheckoutItem[]) {
+    if (!items.length) {
+      throw new BadRequestException('Cart is empty');
+    }
+
+    for (const item of items) {
+      const toy = this.toys.find((candidate) => candidate.id === item.toyId);
+      if (!toy) {
+        throw new BadRequestException(`Toy ${item.toyId} not found`);
+      }
+      if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+        throw new BadRequestException('Quantity must be a positive integer');
+      }
+      if (toy.stock < item.quantity) {
+        throw new BadRequestException(`Not enough stock for ${toy.title}`);
+      }
+    }
+
+    let total = 0;
+    for (const item of items) {
+      const toy = this.toys.find((candidate) => candidate.id === item.toyId);
+      if (!toy) {
+        continue;
+      }
+      toy.stock -= item.quantity;
+      toy.available = toy.stock > 0;
+      total += toy.price * item.quantity;
+    }
+
+    return {
+      orderId: Date.now().toString(),
+      total,
+      toys: this.toys,
+    };
   }
 }
