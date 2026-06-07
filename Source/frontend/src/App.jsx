@@ -157,6 +157,8 @@ function App() {
       const payload = await request('/toys/checkout', {
         method: 'POST',
         body: JSON.stringify({
+          userId: session?.user?.id,
+          customerEmail: session?.user?.email || session?.login,
           items: cartItems.map((item) => ({
             toyId: item.id,
             quantity: item.quantity,

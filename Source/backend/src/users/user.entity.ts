@@ -4,6 +4,7 @@ export interface User {
   email: string;
   passwordHash?: string;
   age?: number;
+  role?: 'client' | 'admin';
 }
 
 export type PublicUser = Omit<User, 'passwordHash'>;
